@@ -1,3 +1,5 @@
+import java.io.IOException;
+
 public class Main {
     public static void main(String[] args) {
         Attribute age = new Attribute();
@@ -16,6 +18,11 @@ public class Main {
 
         String dataFile = "heart_failure_clinical_records_dataset_upr.csv";
         C45Tree c45Tree = new C45Tree(dataFile, new Attribute[]{age, anaemia, creatinine, diabetes, ejectionFraction, highBloodPressure, platelets,
-        serumCreatinine, serumSodium, sex, smoking, time, deathEvent});
+        serumCreatinine, serumSodium, sex, smoking, time, deathEvent}, 299);
+        try {
+            c45Tree.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

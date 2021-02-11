@@ -22,6 +22,10 @@ public class Attribute {
         return this.values;
     }
 
+    String getValue(int index) {
+        return this.values[index];
+    }
+
     int getNumberOfValues() {
         return this.numberOfValues;
     }

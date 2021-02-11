@@ -1,12 +1,22 @@
 public class AttValue extends Attribute {
     String sValue;
-    double iValue;
+    double nValue;
 
-    public AttValue(boolean numeric, String sValue, double iValue) {
+    public AttValue(boolean numeric, String sValue, double nValue) {
         this.numeric = numeric;
-        sValue = sValue;
-        iValue = iValue;
+        this.sValue = sValue;
+        this.nValue = nValue;
     }
 
+    public String getsValue() {
+        return sValue;
+    }
 
+    public double getnValue() {
+        return this.nValue;
+    }
+
+    public void setnValue(double nValue) {
+        this.nValue = nValue;
+    }
 }
