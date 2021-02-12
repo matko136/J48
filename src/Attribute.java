@@ -26,6 +26,7 @@ public class Attribute {
         return this.values[index];
     }
 
+
     int getNumberOfValues() {
         return this.numberOfValues;
     }
