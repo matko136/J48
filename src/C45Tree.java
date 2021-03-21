@@ -4,14 +4,20 @@ import java.util.Scanner;
 
 public class C45Tree {
     J48Node root = null;
+    int minimumInstancesOnLeave = 2;
     Sample samples[];
-    Attribute attrs[];
+    Attribute[] attrs;
+    private boolean validation;
+    private int kFold;
     int numberOfSamples;
     BufferedReader buffReader;
     Scanner scan;
     int numberOfAttributes;
-    public C45Tree(String dataFile, Attribute attrs[], int numberOfSamples) {
+
+    public C45Tree(String dataFile, Attribute attrs[], int numberOfSamples, boolean validation, int kFold) {
         this.attrs = attrs;
+        this.validation = validation;
+        this.kFold = kFold;
         try {
             this.scan = new Scanner(new File(dataFile));
             this.scan.useDelimiter(",");
@@ -46,8 +52,47 @@ public class C45Tree {
             attVals = new AttValue[numberOfAttributes];
         }
 
+        if(this.validation) {
+            crossValidation(this.kFold);
+        }
         this.composeTree();
         //J48Node node = new J48Node(null, null);
+    }
+
+    private void crossValidation(int kFold) {
+        int numOfCatValues = this.attrs[this.numberOfAttributes-1].getNumberOfValues();
+        int numOfSpecificCatValues[]= new int[numOfCatValues];
+        for(int i = 0; i < this.numberOfSamples; i++) {
+            for(int j = 0; j < numOfCatValues; j++) {
+                if(this.samples[i].getAttValue(this.numberOfAttributes-1).getsValue().equals(this.attrs[this.numberOfAttributes-1].getValue(j))) {
+                    numOfSpecificCatValues[j]++;
+                }
+            }
+        }
+        Sample sampsCategoricalValue[][] = new Sample[numOfCatValues][];
+        for(int i = 0; i < numOfCatValues; i++) {
+            sampsCategoricalValue[i] = new Sample[numOfSpecificCatValues[i]];
+        }
+        int specCatValIndex[] = new int[numOfCatValues];
+        for(int i = 0; i < this.numberOfSamples; i++) {
+            for(int j = 0; j < numOfCatValues; j++) {
+                if(this.samples[i].getAttValue(this.numberOfAttributes-1).getsValue().equals(this.attrs[this.numberOfAttributes-1].getValue(j))) {
+                    sampsCategoricalValue[j][specCatValIndex[j]++] = this.samples[i];
+                }
+            }
+        }
+        specCatValIndex = new int[numOfCatValues];
+        Sample samps[][] = new Sample[kFold][this.numberOfSamples/kFold];
+        for(int i = 0; i < kFold-1; i++) {
+            for(int j = 0; j < (i+1)*this.numberOfSamples/kFold; j++) {
+                for(int h = 0; h < numOfCatValues; h++) {
+                    int num = 0;
+                    while(num != numOfSpecificCatValues[h]/kFold) {
+                        samps[i][j] = this.samples[(i * this.numberOfSamples / kFold) + j];
+                    }
+                }
+            }
+        }
     }
 
     private void composeTree() {
@@ -58,15 +103,19 @@ public class C45Tree {
 
         //loga b = log10 b / log10 a -> log2(x) = Math.log(x) / Math.log(2)
         double bestGain = 0;
-        int indexBestGain = 0;
+        int indexBestGain = -1;
         double bestSplit = 0;
         int bestBranchSize[] = new int[1];
         double dataSetEntropy = calcEntropy(samples, -1,0, null);
-        if(dataSetEntropy == 0.0) {
+        if(dataSetEntropy == 0.0 || samples.length == 2) {
             J48Node node = new J48Node(parent, 0, samples, -1, 0);
+            parent.setChild(childNumber, node);
             return;
         }
         for(int i = 0; i < numberOfAttributes-1; i++) {
+            if(i == 5) {
+                int d = 5;
+            }
             double entropy = 0;
             int branchSize[] = new int[1];
             double localBestSplit = 0;
@@ -84,7 +133,25 @@ public class C45Tree {
                         int actualBranchSize[] = new int[2];
                         double splitEntropy = calcEntropy(samples, i, sorted[1][j], actualBranchSize);
                         lastSplit = sorted[1][j];
-                        if (splitEntropy <= bestEntropy) {
+                        /*boolean minimumInstances = true;
+                        int classMinimValues[] = new int[this.attrs[this.numberOfAttributes-1].getNumberOfValues()];
+                        for(int k = 0; k < actualBranchSize.length; k++) {
+                            if(actualBranchSize[k] < minimumInstancesOnLeave) {
+                                minimumInstances = false;
+                                break;
+                            }
+                            for(int h = 0; h < this.attrs[this.numberOfAttributes-1].getNumberOfValues(); h++) {
+                                if()
+                            }
+                        }*/
+                        boolean minimumInstances = true;
+                        for(int k = 0; k < actualBranchSize.length; k++) {
+                            if (actualBranchSize[k] < minimumInstancesOnLeave) {
+                                minimumInstances = false;
+                                break;
+                            }
+                        }
+                        if ((splitEntropy <= bestEntropy) && minimumInstances) {
                             bestEntropy = splitEntropy;
                             indexBestEntropy = j;
                             localBestSplit = lastSplit;
@@ -95,12 +162,25 @@ public class C45Tree {
                 entropy = bestEntropy;
             }
 
-            if(dataSetEntropy - entropy >= bestGain) {
+            boolean minimumInstances = true;
+            for(int k = 0; k < branchSize.length; k++) {
+                if(branchSize[k] < minimumInstancesOnLeave) {
+                    minimumInstances = false;
+                    break;
+                }
+            }
+
+            if((dataSetEntropy - entropy >= bestGain) && minimumInstances) {
                 bestSplit = localBestSplit;
                 bestGain = dataSetEntropy - entropy;
                 indexBestGain = i;
                 bestBranchSize = branchSize;
             }
+        }
+        if(indexBestGain == -1) {
+            J48Node node = new J48Node(parent, 0, samples, -1, 0);
+            parent.setChild(childNumber, node);
+            return;
         }
         int numberOfAttrClassValues = this.attrs[indexBestGain].getNumberOfValues();
         J48Node nodes[] = new J48Node[numberOfAttrClassValues];
@@ -124,6 +204,7 @@ public class C45Tree {
             samps = new Sample[2][];
             currentSampsIndex = new int[2];
             for(int i = 0; i < 2; i++) {
+                System.out.println(bestBranchSize[i]);
                 samps[i] = new Sample[bestBranchSize[i]];
             }
             for(int i = 0; i < samples.length; i++) {
@@ -229,7 +310,9 @@ public class C45Tree {
                     branchSize[i] = attrClassValues[i];
                     for(int j = 0; j < numberOfClassValues; j++) {
                         double valueProb = (double)classValues[i][j]/attrClassValues[i];
-                        entropy += valueProb*(Math.log(valueProb)/Math.log(2))*(-1)*((double)attrClassValues[i]/numOfSamp);
+                        if(valueProb > 0) {
+                            entropy += valueProb * (Math.log(valueProb) / Math.log(2)) * (-1) * ((double) attrClassValues[i] / numOfSamp);
+                        }
                     }
                 }
             } else {
@@ -264,4 +347,60 @@ public class C45Tree {
         }
         return entropy;
     }
+
+    public void drawTree() {
+        this.draw(root, 1);
+    }
+
+    private void draw(J48Node node, int level) {
+        int numOfClassVal = this.attrs[this.numberOfAttributes-1].getNumberOfValues();
+        if(node.childrenSize > 0) {
+            for (int i = 0; i < node.childrenSize; i++) {
+                for (int j = 1; j < level; j++) {
+                    System.out.print("|");
+                    System.out.print("\t");
+                }
+                if (!this.attrs[node.attr].isNumeric()) {
+                    System.out.println(this.attrs[node.attr].getValue(i));
+                    draw(node.children[i], level + 1);
+                } else {
+                    System.out.print(this.attrs[node.attr].getName());
+                    if (i == 0) {
+                        System.out.println(" <= " + node.getTreshold());
+                    } else {
+                        System.out.println(" > " + node.getTreshold());
+                    }
+                    draw(node.children[i], level + 1);
+                }
+            }
+        } else {
+            Sample[] sampss = node.getSamples();
+            int[] classInst = new int[numOfClassVal];
+            for(int i = 0; i < node.getSampleSize(); i++) {
+                for(int j = 0; j < numOfClassVal; j++) {
+                    if(sampss[i].getAttValue(this.numberOfAttributes-1).getsValue().equals(this.attrs[this.numberOfAttributes-1].getValue(j))) {
+                        classInst[j]++;
+                        break;
+                    }
+                }
+            }
+            int bestClassInd = 0;
+            int bestNumOfCl = 0;
+            for(int j = 0; j < numOfClassVal; j++) {
+                if(classInst[j] >= bestNumOfCl) {
+                    bestNumOfCl = classInst[j];
+                    bestClassInd = j;
+                }
+            }
+
+            for (int j = 1; j < level; j++) {
+                System.out.print("|");
+                System.out.print("\t");
+            }
+            final String RED = "\033[0;31m";
+            final String RESET = "\033[0m";
+            System.out.println(RED + this.attrs[this.numberOfAttributes-1].getValue(bestClassInd) + ": " + node.getSampleSize() + ((node.getSampleSize()-bestNumOfCl > 0) ? (" / " + (node.getSampleSize()-bestNumOfCl)) : "") + RESET);
+        }
+    }
+
 }

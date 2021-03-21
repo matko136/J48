@@ -1,15 +1,18 @@
 public class Attribute {
+    String name;
     boolean numeric;
     int numberOfValues;
     String values[];
 
-    public Attribute(int numberOfValues, String values[]) {
+    public Attribute(int numberOfValues, String values[], String name) {
+        this.name = name;
         this.numeric = false;
         this.values = values;
         this.numberOfValues = values.length;
     }
 
-    public Attribute() {
+    public Attribute(String name) {
+        this.name = name;
         this.numeric = true;
         this.numberOfValues = 1;
     }
@@ -29,5 +32,9 @@ public class Attribute {
 
     int getNumberOfValues() {
         return this.numberOfValues;
+    }
+
+    String getName() {
+        return this.name;
     }
 }

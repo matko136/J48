@@ -3,6 +3,7 @@ public class AttValue extends Attribute {
     double nValue;
 
     public AttValue(boolean numeric, String sValue, double nValue) {
+        super("");
         this.numeric = numeric;
         this.sValue = sValue;
         this.nValue = nValue;
