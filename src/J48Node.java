@@ -6,6 +6,9 @@ public class J48Node {
     int attr;
     double treshold;
     int sampleSize;
+    int classIndex;
+    int misClassifiedSamps;
+    double errorRate;
 
     public J48Node(J48Node parent, int childrenSize, Sample samples[], int decisionAttr, double treshold) {
         this.parent = parent;
@@ -17,8 +20,52 @@ public class J48Node {
         this.sampleSize = samples.length;
     }
 
+    public void setChildrenSize(int size) {
+        this.childrenSize = size;
+    }
+
+    public void setClassIndex(int classIndex) {
+        this.classIndex = classIndex;
+    }
+
+    public void setMisClassifiedSamps(int misClassifiedSamps) {
+        this.misClassifiedSamps = misClassifiedSamps;
+    }
+
+    public void setErrorRate(double errorRate) {
+        this.errorRate = errorRate;
+    }
+
+    public int getClassIndex() {
+        return this.classIndex;
+    }
+
+    public int getMisClassifiedSamps() {
+        return this.misClassifiedSamps;
+    }
+
+    public double getErrorRate() {
+        return this.errorRate;
+    }
+
+    public double getSubErrorRate() {
+        if(childrenSize == 0) {
+            return this.errorRate;
+        } else {
+            double errors = 0;
+            for(int i = 0; i < childrenSize; i++) {
+                errors += children[i].getSubErrorRate();
+            }
+            return errors;
+        }
+    }
+
     public void setChild(int index, J48Node child) {
         this.children[index] = child;
+    }
+
+    public J48Node getChild(int index) {
+        return this.children[index];
     }
 
     public double getTreshold() {

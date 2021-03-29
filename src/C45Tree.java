@@ -1,6 +1,7 @@
 import javax.swing.tree.TreeNode;
 import java.io.*;
 import java.util.Scanner;
+import org.apache.commons.math3.distribution.BetaDistribution;
 
 public class C45Tree {
     J48Node root = null;
@@ -109,6 +110,7 @@ public class C45Tree {
         double dataSetEntropy = calcEntropy(samples, -1,0, null);
         if(dataSetEntropy == 0.0 || samples.length == 2) {
             J48Node node = new J48Node(parent, 0, samples, -1, 0);
+            calcErrors(node);
             parent.setChild(childNumber, node);
             return;
         }
@@ -179,6 +181,7 @@ public class C45Tree {
         }
         if(indexBestGain == -1) {
             J48Node node = new J48Node(parent, 0, samples, -1, 0);
+            calcErrors(node);
             parent.setChild(childNumber, node);
             return;
         }
@@ -216,6 +219,7 @@ public class C45Tree {
             }
         }
         J48Node node = new J48Node(parent, numberOfAttrClassValues, samples, indexBestGain, bestSplit);
+        calcErrors(node);
         if(root == null) {
             root = node;
         }
@@ -225,6 +229,57 @@ public class C45Tree {
         for(int i = 0; i < numberOfAttrClassValues; i++) {
             findBranches(node, i, samps[i]);
         }
+
+
+        //prune child nodes
+        double childSumErrors = 0;
+        if(node.sampleSize == 178) {
+            int h = 0;
+        }
+        for(int i = 0; i < node.childrenSize; i++) {
+            childSumErrors += node.getChild(i).getSubErrorRate();
+        }
+        if(childSumErrors > node.getErrorRate()) {
+            node.setChildrenSize(0);
+        }
+    }
+
+    private void calcErrors(J48Node node) {
+        int numOfClassVal = this.attrs[this.numberOfAttributes-1].getNumberOfValues();
+        Sample[] sampss = node.getSamples();
+        int[] classInst = new int[numOfClassVal];
+        for(int i = 0; i < node.getSampleSize(); i++) {
+            for(int j = 0; j < numOfClassVal; j++) {
+                if(sampss[i].getAttValue(this.numberOfAttributes-1).getsValue().equals(this.attrs[this.numberOfAttributes-1].getValue(j))) {
+                    classInst[j]++;
+                    break;
+                }
+            }
+        }
+        int bestClassInd = 0;
+        int bestNumOfCl = 0;
+        for(int j = 0; j < numOfClassVal; j++) {
+            if(classInst[j] >= bestNumOfCl) {
+                bestNumOfCl = classInst[j];
+                bestClassInd = j;
+            }
+        }
+        int numOfMisClass = 0;
+        for(int j = 0; j < numOfClassVal; j++) {
+            if(j != bestClassInd) {
+                numOfMisClass += classInst[j];
+            }
+        }
+        node.setMisClassifiedSamps(numOfMisClass);
+        node.setClassIndex(bestClassInd);
+        double errorRate = 0;
+        if(numOfMisClass > 0) {
+            BetaDistribution dist = new BetaDistribution(sampss.length - numOfMisClass, numOfMisClass + 1);
+            errorRate = sampss.length * (1 - dist.inverseCumulativeProbability(0.25));
+        } else {
+            errorRate = sampss.length * (1- (Math.pow(0.25,((double)1/sampss.length))));
+        }
+        node.setErrorRate(errorRate);
     }
 
 
