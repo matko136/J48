@@ -84,5 +84,9 @@ public class J48Node {
         return sampleSize;
     }
 
+    public int getAttr() {
+        return this.attr;
+    }
+
 
 }

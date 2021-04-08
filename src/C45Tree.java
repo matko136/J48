@@ -14,10 +14,14 @@ public class C45Tree {
     BufferedReader buffReader;
     Scanner scan;
     int numberOfAttributes;
+    int confMat[][];
+    boolean prune = false;
 
-    public C45Tree(String dataFile, Attribute attrs[], int numberOfSamples, boolean validation, int kFold) {
+    public C45Tree(String dataFile, Attribute attrs[], int numberOfSamples, boolean validation, boolean prune, int kFold) {
+        confMat = new int[2][2];
         this.attrs = attrs;
         this.validation = validation;
+        this.prune = prune;
         this.kFold = kFold;
         try {
             this.scan = new Scanner(new File(dataFile));
@@ -43,9 +47,9 @@ public class C45Tree {
             String[] attVal = line.split(splitBy);
             while(indexOfVal < numberOfAttributes) {
                 if(attrs[indexOfVal].isNumeric()) {
-                    attVals[indexOfVal] = new AttValue(true,"", Double.parseDouble(attVal[indexOfVal]));// scan.nextDouble()
+                    attVals[indexOfVal] = new AttValue(true,"", Double.parseDouble(attVal[indexOfVal]), attrs[indexOfVal].getName());// scan.nextDouble()
                 } else {
-                    attVals[indexOfVal] = new AttValue(false, attVal[indexOfVal], 0);
+                    attVals[indexOfVal] = new AttValue(false, attVal[indexOfVal], 0, attrs[indexOfVal].getName());
                 }
                 indexOfVal++;
             }
@@ -56,7 +60,11 @@ public class C45Tree {
         if(this.validation) {
             crossValidation(this.kFold);
         }
-        this.composeTree();
+
+        System.out.println("========================Final tree========================");
+        composeTree(this.samples);
+        drawTree();
+        //this.composeTree();
         //J48Node node = new J48Node(null, null);
     }
 
@@ -84,20 +92,97 @@ public class C45Tree {
         }
         specCatValIndex = new int[numOfCatValues];
         Sample samps[][] = new Sample[kFold][this.numberOfSamples/kFold];
-        for(int i = 0; i < kFold-1; i++) {
-            for(int j = 0; j < (i+1)*this.numberOfSamples/kFold; j++) {
-                for(int h = 0; h < numOfCatValues; h++) {
-                    int num = 0;
-                    while(num != numOfSpecificCatValues[h]/kFold) {
-                        samps[i][j] = this.samples[(i * this.numberOfSamples / kFold) + j];
+        for(int i = 0; i < kFold; i++) {
+            int celk = 0;
+            for(int h = 0; h < numOfCatValues; h++) {
+                int num = 0;
+                while(num != numOfSpecificCatValues[h]/kFold) {
+                    int k = ((i*numOfSpecificCatValues[h]/kFold)+num+celk);
+                    int z = (i*numOfSpecificCatValues[h]/kFold)+num;
+                    samps[i][num+celk] = sampsCategoricalValue[h][((i*numOfSpecificCatValues[h]/kFold)+num)];//this.samples[(i * this.numberOfSamples / kFold) + j];
+                    num++;
+                }
+                celk += num;
+            }
+        }
+
+        for(int indexTest = 0; indexTest < 10; indexTest++) {
+            Sample trainSamples[] = new Sample[this.numberOfSamples-this.numberOfSamples/kFold];
+            int indexSamp = 0;
+            for(int i = 0; i < kFold; i++) {
+                if(i != indexTest) {
+                    for(int j = 0; j < this.numberOfSamples/kFold; j++) {
+                        trainSamples[indexSamp++] = samps[i][j];
                     }
                 }
             }
+            System.out.println("\n" + (indexTest+1) + " th fold");
+            System.out.println("Train samples");
+            for(int i = 0; i < samps.length; i++) {
+                if(i != indexTest) {
+                    for (int j = 0; j < samps[i].length; j++) {
+                        System.out.println(samps[i][j].toString());
+                    }
+                }
+            }
+            System.out.println("Test samples");
+            for(int j = 0; j < this.numberOfSamples/kFold; j++) {
+                System.out.println(samps[indexTest][j]);
+            }
+            composeTree(trainSamples);
+            drawTree();
+            testTree(samps[indexTest]);
+            this.root = null;
         }
+
+
     }
 
-    private void composeTree() {
-        this.findBranches(null, 0, samples);
+    private void composeTree(Sample[] samps) {
+        this.findBranches(null, 0, samps);
+    }
+
+    private void testTree(Sample[] samps) {
+        for(int i = 0; i < samps.length; i++) {
+            boolean leave = false;
+            J48Node actNode = root;
+            int nodeIndClass = 0;
+            while (!leave) {
+                if (actNode.childrenSize == 0) {
+                    nodeIndClass = actNode.getClassIndex();
+                    leave = true;
+                } else {
+                    int indAttr = actNode.getAttr();
+                    if (this.attrs[indAttr].isNumeric()) {
+                        if(samps[i].getAttValue(indAttr).getnValue() <= actNode.getTreshold())
+                            actNode = actNode.getChild(0);
+                        else
+                            actNode = actNode.getChild(1);
+                    } else {
+                        for(int j = 0; j < this.attrs[indAttr].getNumberOfValues(); j++) {
+                            if(samps[i].getAttValue(indAttr).getsValue().equals(this.attrs[indAttr].getValue(j))) {
+                                actNode = actNode.getChild(j);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            String realValue = samps[i].getAttValue(this.numberOfAttributes-1).getsValue();
+            if(this.attrs[this.numberOfAttributes-1].getValue(nodeIndClass).equals(realValue)) {
+                if(realValue.equals(this.attrs[this.numberOfAttributes-1].getValue(0))) {
+                    confMat[0][0]++;
+                } else {
+                    confMat[1][1]++;
+                }
+            } else {
+                if(realValue.equals(this.attrs[this.numberOfAttributes-1].getValue(1))) {
+                    confMat[0][1]++;
+                } else {
+                    confMat[1][0]++;
+                }
+            }
+        }
     }
 
     private void findBranches(J48Node parent, int childNumber, Sample[] samples) {
@@ -232,15 +317,17 @@ public class C45Tree {
 
 
         //prune child nodes
-        double childSumErrors = 0;
-        if(node.sampleSize == 178) {
-            int h = 0;
-        }
-        for(int i = 0; i < node.childrenSize; i++) {
-            childSumErrors += node.getChild(i).getSubErrorRate();
-        }
-        if(childSumErrors > node.getErrorRate()) {
-            node.setChildrenSize(0);
+        if(prune) {
+            double childSumErrors = 0;
+            /*if (node.sampleSize == 178) {
+                int h = 0;
+            }*/
+            for (int i = 0; i < node.childrenSize; i++) {
+                childSumErrors += node.getChild(i).getSubErrorRate();
+            }
+            if (childSumErrors > node.getErrorRate()) {
+                node.setChildrenSize(0);
+            }
         }
     }
 

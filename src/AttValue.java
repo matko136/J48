@@ -2,8 +2,8 @@ public class AttValue extends Attribute {
     String sValue;
     double nValue;
 
-    public AttValue(boolean numeric, String sValue, double nValue) {
-        super("");
+    public AttValue(boolean numeric, String sValue, double nValue, String name) {
+        super(name);
         this.numeric = numeric;
         this.sValue = sValue;
         this.nValue = nValue;
