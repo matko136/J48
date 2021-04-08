@@ -1,5 +1,7 @@
 import javax.swing.tree.TreeNode;
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import org.apache.commons.math3.distribution.BetaDistribution;
 
@@ -64,6 +66,14 @@ public class C45Tree {
         System.out.println("========================Final tree========================");
         composeTree(this.samples);
         drawTree();
+
+        System.out.println("\nConfusion matrix:");
+        for(int i = 0; i < 2; i++) {
+            System.out.println();
+            for(int j = 0; j < 2; j++)
+                System.out.print(" " + this.confMat[i][j]);
+        }
+
         //this.composeTree();
         //J48Node node = new J48Node(null, null);
     }
@@ -91,8 +101,25 @@ public class C45Tree {
             }
         }
         specCatValIndex = new int[numOfCatValues];
-        Sample samps[][] = new Sample[kFold][this.numberOfSamples/kFold];
-        for(int i = 0; i < kFold; i++) {
+        List<List<Sample>> samps = new ArrayList<List<Sample>>(kFold);
+        //ArrayList<Sample>[] samps= new ArrayList<Sample>()[];
+        //Sample samps[][] = new Sample[kFold][];
+
+        for (int i = 0; i < kFold; i++) {
+            samps.add(new ArrayList<Sample>());
+        }
+
+        for(int i = 0; i < numOfCatValues; i++) {
+            int count = 0;
+            for(int j = 0; j < sampsCategoricalValue[i].length; j++)  {
+                samps.get(count).add(sampsCategoricalValue[i][j]);
+                count++;
+                if(count % kFold == 0)
+                    count = 0;
+            }
+        }
+
+        /*for(int i = 0; i < kFold; i++) {
             int celk = 0;
             for(int h = 0; h < numOfCatValues; h++) {
                 int num = 0;
@@ -104,9 +131,43 @@ public class C45Tree {
                 }
                 celk += num;
             }
+        }*/
+
+        for(int indexTest = 0; indexTest < kFold; indexTest++) {
+            ArrayList<Sample> trainSamples = new ArrayList<Sample>();
+            //Sample trainSamples[] = new Sample[this.numberOfSamples-this.numberOfSamples/kFold];
+            int indexSamp = 0;
+            for(int i = 0; i < kFold; i++) {
+                if(i != indexTest) {
+                    List<Sample> actFold = samps.get(i);
+                    for(int j = 0; j < actFold.size(); j++) {
+                        trainSamples.add(actFold.get(j));
+                    }
+                }
+            }
+            System.out.println("\n" + (indexTest+1) + " th fold");
+            System.out.println("Train samples");
+            for(int i = 0; i < trainSamples.size(); i++) {
+                System.out.println(trainSamples.get(i));
+            }
+            /*for(int i = 0; i < samps.length; i++) {
+                if(i != indexTest) {
+                    for (int j = 0; j < samps[i].length; j++) {
+                        System.out.println(samps[i][j].toString());
+                    }
+                }
+            }*/
+            System.out.println("Test samples");
+            for(int j = 0; j < samps.get(indexTest).size(); j++) {
+                System.out.println(samps.get(indexTest).get(j));
+            }
+            composeTree(listToArr(trainSamples));
+            drawTree();
+            testTree(listToArr(samps.get(indexTest)));
+            this.root = null;
         }
 
-        for(int indexTest = 0; indexTest < 10; indexTest++) {
+        /*for(int indexTest = 0; indexTest < 10; indexTest++) {
             Sample trainSamples[] = new Sample[this.numberOfSamples-this.numberOfSamples/kFold];
             int indexSamp = 0;
             for(int i = 0; i < kFold; i++) {
@@ -133,9 +194,18 @@ public class C45Tree {
             drawTree();
             testTree(samps[indexTest]);
             this.root = null;
+        }*/
+
+
+    }
+
+    private Sample[] listToArr(List<Sample> sampss) {
+        Sample retArr[] = new Sample[sampss.size()];
+        int count = 0;
+        for (Sample sam : sampss) {
+            retArr[count++] = sam;
         }
-
-
+        return  retArr;
     }
 
     private void composeTree(Sample[] samps) {
@@ -171,9 +241,9 @@ public class C45Tree {
             String realValue = samps[i].getAttValue(this.numberOfAttributes-1).getsValue();
             if(this.attrs[this.numberOfAttributes-1].getValue(nodeIndClass).equals(realValue)) {
                 if(realValue.equals(this.attrs[this.numberOfAttributes-1].getValue(0))) {
-                    confMat[0][0]++;
-                } else {
                     confMat[1][1]++;
+                } else {
+                    confMat[0][0]++;
                 }
             } else {
                 if(realValue.equals(this.attrs[this.numberOfAttributes-1].getValue(1))) {
@@ -200,9 +270,9 @@ public class C45Tree {
             return;
         }
         for(int i = 0; i < numberOfAttributes-1; i++) {
-            if(i == 5) {
+            /*if(i == 5) {
                 int d = 5;
-            }
+            }*/
             double entropy = 0;
             int branchSize[] = new int[1];
             double localBestSplit = 0;
