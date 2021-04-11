@@ -2,7 +2,7 @@ import java.io.IOException;
 
 public class Main {
     public static void main(String[] args) {
-        Attribute age = new Attribute("age");
+        /*Attribute age = new Attribute("age");
         Attribute anaemia = new Attribute(2, new String[]{"non_anemic", "anemic"}, "anaemia");
         Attribute creatinine = new Attribute("creatinine");
         Attribute diabetes = new Attribute(2, new String[]{"non_diabetic", "diabetic"}, "diabetes");
@@ -18,7 +18,8 @@ public class Main {
 
         String dataFile = "heart_failure_clinical_records_dataset_upr.csv";//"heart_failure_clinical_records_dataset_upr.csv";
         C45Tree c45Tree = new C45Tree(dataFile, new Attribute[]{age, anaemia, creatinine, diabetes, ejectionFraction, highBloodPressure, platelets,
-        serumCreatinine, serumSodium, sex, smoking, time, deathEvent}, 299, true,true, 10);
+        serumCreatinine, serumSodium, sex, smoking, time, deathEvent}, 299, false,false, 10);*/
+
         /*Attribute age = new Attribute(3, new String[]{"young", "middle", "old"}, "Age");
         Attribute job = new Attribute(2, new String[]{"FALSE", "TRUE"}, "Has_Job");
         Attribute own_house = new Attribute(2, new String[]{"FALSE", "TRUE"}, "Own_House");
@@ -27,6 +28,15 @@ public class Main {
 
         String dataFile = "loan_approve.csv";
         C45Tree c45Tree = new C45Tree(dataFile, new Attribute[]{age, job, own_house, rating, classAtt}, 15, false,false, 10);*/
+
+        Attribute age = new Attribute(3, new String[]{"<=30", "31..40", ">40"}, "Age");
+        Attribute income = new Attribute(3, new String[]{"Low", "Medium", "High"}, "Income");
+        Attribute student = new Attribute(2, new String[]{"No", "Yes"}, "Student");
+        Attribute rating = new Attribute(3, new String[]{"Fair", "Excellent"}, "Credit_Rating");
+        Attribute classAtt = new Attribute(2, new String[]{"no", "yes"}, "Class");
+
+        String dataFile = "buy_comp.csv";
+        C45Tree c45Tree = new C45Tree(dataFile, new Attribute[]{age, income, student, rating, classAtt}, 37, false,true, 10);
 
         try {
             c45Tree.start();

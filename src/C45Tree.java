@@ -261,6 +261,7 @@ public class C45Tree {
         double bestGain = 0;
         int indexBestGain = -1;
         double bestSplit = 0;
+        double bestGainRatioGlob = 0;
         int bestBranchSize[] = new int[1];
         double dataSetEntropy = calcEntropy(samples, -1,0, null);
         if(dataSetEntropy == 0.0 || samples.length == 2) {
@@ -274,17 +275,25 @@ public class C45Tree {
                 int d = 5;
             }*/
             double entropy = 0;
+            double gainRatio = 0;
             int branchSize[] = new int[1];
             double localBestSplit = 0;
             if(!attrs[i].isNumeric()) {
                 branchSize = new int[this.attrs[i].getNumberOfValues()];
                 entropy = calcEntropy(samples, i, 0, branchSize);
+                double split_info = 0;//((i+1) * (Math.log(i+1)/Math.log(2))) + ((samples.length - i - 1) * (Math.log(samples.length - i - 1)/Math.log(2)));
+                for(int k = 0; k < attrs[i].getNumberOfValues(); k++) {
+                    split_info += (-1)*(((double)branchSize[k]/samples.length) * (Math.log((double)branchSize[k]/samples.length)/Math.log(2)));
+                }
+                double infGain = dataSetEntropy - entropy;
+                gainRatio = infGain/split_info;
             } else {
                 branchSize = new int[2];
                 double sorted[][] = sort(samples, i);
                 double bestEntropy = 1;
                 int indexBestEntropy = 0;
                 double lastSplit = 1000000000;
+                double bestGainRatio = 0;
                 for(int j = 0; j < samples.length; j++) {
                     if(lastSplit != sorted[1][j]) {
                         int actualBranchSize[] = new int[2];
@@ -308,7 +317,11 @@ public class C45Tree {
                                 break;
                             }
                         }
-                        if ((splitEntropy <= bestEntropy) && minimumInstances) {
+                        double inf_gain = dataSetEntropy - splitEntropy;
+                        double split_info = (-1)*(((double)(j+1)/samples.length) * (Math.log((double)(j+1)/samples.length)/Math.log(2))) + (-1)*(((double)(samples.length - j - 1)/samples.length) * (Math.log((double)(samples.length - j - 1)/samples.length)/Math.log(2)));
+                        double gain_ratio = inf_gain/split_info;
+                        if ((gain_ratio >= bestGainRatio) && minimumInstances) {
+                            bestGainRatio = gain_ratio;
                             bestEntropy = splitEntropy;
                             indexBestEntropy = j;
                             localBestSplit = lastSplit;
@@ -317,6 +330,7 @@ public class C45Tree {
                     }
                 }
                 entropy = bestEntropy;
+                gainRatio = bestGainRatio;
             }
 
             boolean minimumInstances = true;
@@ -327,7 +341,8 @@ public class C45Tree {
                 }
             }
 
-            if((dataSetEntropy - entropy >= bestGain) && minimumInstances) {
+            if((gainRatio >= bestGainRatioGlob) && minimumInstances) {
+                bestGainRatioGlob = gainRatio;
                 bestSplit = localBestSplit;
                 bestGain = dataSetEntropy - entropy;
                 indexBestGain = i;
@@ -374,31 +389,66 @@ public class C45Tree {
             }
         }
         J48Node node = new J48Node(parent, numberOfAttrClassValues, samples, indexBestGain, bestSplit);
-        calcErrors(node);
+        //calcErrors(node);
+
+
+        int numOfClassVal = this.attrs[this.numberOfAttributes-1].getNumberOfValues();
+        int freqClassValuesInAttrBran[][] = new int[numberOfAttrClassValues][numOfClassVal];
+        int deltas[] = new int[numberOfAttrClassValues];
+        for(int i = 0; i < numberOfAttrClassValues; i++) {
+            for(int k = 0; k < samps[i].length; k++) {
+                for (int j = 0; j < numOfClassVal; j++) {
+                    if(samps[i][k].getAttValue(this.numberOfAttributes-1).getsValue().equals(this.attrs[this.numberOfAttributes-1].getValue(j))) {
+                        freqClassValuesInAttrBran[i][j]++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        double xTreshold = 0;
+        for(int i = 0; i < numberOfAttrClassValues; i++) {
+            deltas[i] = freqClassValuesInAttrBran[i][0];
+            for(int j = 1; j < numOfClassVal; j++) {
+                deltas[i] -= freqClassValuesInAttrBran[i][j];
+            }
+            deltas[i] = Math.abs(deltas[i]);
+            xTreshold += deltas[i];
+        }
+        xTreshold = xTreshold/numberOfAttrClassValues;
+
         if(root == null) {
             root = node;
         }
         if(parent != null) {
             parent.setChild(childNumber , node);
         }
+
         for(int i = 0; i < numberOfAttrClassValues; i++) {
-            findBranches(node, i, samps[i]);
+            if(xTreshold == 63)
+                System.out.println("");
+            if(deltas[i] >= xTreshold)
+                node.setChild(i, new J48Node(node, 0, samps[i], -1,0));
+            else
+                findBranches(node, i, samps[i]);
         }
 
 
+
+
         //prune child nodes
-        if(prune) {
-            double childSumErrors = 0;
+        /*if(prune) {
+            double childSumErrors = 0;*/
             /*if (node.sampleSize == 178) {
                 int h = 0;
             }*/
-            for (int i = 0; i < node.childrenSize; i++) {
+            /*for (int i = 0; i < node.childrenSize; i++) {
                 childSumErrors += node.getChild(i).getSubErrorRate();
             }
             if (childSumErrors > node.getErrorRate()) {
                 node.setChildrenSize(0);
             }
-        }
+        }*/
     }
 
     private void calcErrors(J48Node node) {
