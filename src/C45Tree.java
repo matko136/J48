@@ -362,7 +362,7 @@ public class C45Tree {
             samps = new Sample[2][];
             currentSampsIndex = new int[2];
             for(int i = 0; i < 2; i++) {
-                System.out.println(bestBranchSize[i]);
+                //System.out.println(bestBranchSize[i]);
                 samps[i] = new Sample[bestBranchSize[i]];
             }
             for(int i = 0; i < samples.length; i++) {
