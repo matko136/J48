@@ -224,10 +224,22 @@ public class C45Tree {
                 } else {
                     int indAttr = actNode.getAttr();
                     if (this.attrs[indAttr].isNumeric()) {
-                        if(samps[i].getAttValue(indAttr).getnValue() <= actNode.getTreshold())
+                        double mean = actNode.getMean();
+                        double std = actNode.getStd();
+                        if(samps[i].getAttValue(indAttr).getnValue() < (mean-std)) {
+                            actNode = actNode.getChild(0);
+                        } else if(samps[i].getAttValue(indAttr).getnValue() >= (mean-std) && samps[i].getAttValue(indAttr).getnValue() < mean) {
+                            actNode = actNode.getChild(1);
+                        } else if(samps[i].getAttValue(indAttr).getnValue() >= mean && samps[i].getAttValue(indAttr).getnValue() < (mean+std)) {
+                            actNode = actNode.getChild(2);
+                        } else { //if(samples[i].getAttValue(attr).getnValue() >= (mean+std))
+                            actNode = actNode.getChild(3);
+                        }
+
+                        /*if(samps[i].getAttValue(indAttr).getnValue() <= actNode.getTreshold())
                             actNode = actNode.getChild(0);
                         else
-                            actNode = actNode.getChild(1);
+                            actNode = actNode.getChild(1);*/
                     } else {
                         for(int j = 0; j < this.attrs[indAttr].getNumberOfValues(); j++) {
                             if(samps[i].getAttValue(indAttr).getsValue().equals(this.attrs[indAttr].getValue(j))) {
@@ -262,9 +274,10 @@ public class C45Tree {
         int indexBestGain = -1;
         double bestSplit = 0;
         int bestBranchSize[] = new int[1];
-        double dataSetEntropy = calcEntropy(samples, -1,0, null);
+        double bestMeanStd[] = new double[2];
+        double dataSetEntropy = calcEntropy(samples, -1, null,null);
         if(dataSetEntropy == 0.0 || samples.length == 2) {
-            J48Node node = new J48Node(parent, 0, samples, -1, 0);
+            J48Node node = new J48Node(parent, 0, samples, -1, 0,0);
             calcErrors(node);
             parent.setChild(childNumber, node);
             return;
@@ -276,47 +289,13 @@ public class C45Tree {
             double entropy = 0;
             int branchSize[] = new int[1];
             double localBestSplit = 0;
+            double meanStd[] = new double[2];
             if(!attrs[i].isNumeric()) {
                 branchSize = new int[this.attrs[i].getNumberOfValues()];
-                entropy = calcEntropy(samples, i, 0, branchSize);
+                entropy = calcEntropy(samples, i, branchSize,null);
             } else {
-                branchSize = new int[2];
-                double sorted[][] = sort(samples, i);
-                double bestEntropy = 1;
-                int indexBestEntropy = 0;
-                double lastSplit = 1000000000;
-                for(int j = 0; j < samples.length; j++) {
-                    if(lastSplit != sorted[1][j]) {
-                        int actualBranchSize[] = new int[2];
-                        double splitEntropy = calcEntropy(samples, i, sorted[1][j], actualBranchSize);
-                        lastSplit = sorted[1][j];
-                        /*boolean minimumInstances = true;
-                        int classMinimValues[] = new int[this.attrs[this.numberOfAttributes-1].getNumberOfValues()];
-                        for(int k = 0; k < actualBranchSize.length; k++) {
-                            if(actualBranchSize[k] < minimumInstancesOnLeave) {
-                                minimumInstances = false;
-                                break;
-                            }
-                            for(int h = 0; h < this.attrs[this.numberOfAttributes-1].getNumberOfValues(); h++) {
-                                if()
-                            }
-                        }*/
-                        boolean minimumInstances = true;
-                        for(int k = 0; k < actualBranchSize.length; k++) {
-                            if (actualBranchSize[k] < minimumInstancesOnLeave) {
-                                minimumInstances = false;
-                                break;
-                            }
-                        }
-                        if ((splitEntropy <= bestEntropy) && minimumInstances) {
-                            bestEntropy = splitEntropy;
-                            indexBestEntropy = j;
-                            localBestSplit = lastSplit;
-                            branchSize = actualBranchSize;
-                        }
-                    }
-                }
-                entropy = bestEntropy;
+                branchSize = new int[4];
+                entropy = calcEntropy(samples, i,  branchSize, meanStd);
             }
 
             boolean minimumInstances = true;
@@ -332,10 +311,11 @@ public class C45Tree {
                 bestGain = dataSetEntropy - entropy;
                 indexBestGain = i;
                 bestBranchSize = branchSize;
+                bestMeanStd = meanStd;
             }
         }
         if(indexBestGain == -1) {
-            J48Node node = new J48Node(parent, 0, samples, -1, 0);
+            J48Node node = new J48Node(parent, 0, samples, -1, 0,0);
             calcErrors(node);
             parent.setChild(childNumber, node);
             return;
@@ -357,23 +337,36 @@ public class C45Tree {
                 }
             }
         } else {
-            numberOfAttrClassValues = 2;
-            nodes = new J48Node[2];
-            samps = new Sample[2][];
-            currentSampsIndex = new int[2];
-            for(int i = 0; i < 2; i++) {
-                //System.out.println(bestBranchSize[i]);
+            numberOfAttrClassValues = 4;
+            nodes = new J48Node[4];
+            samps = new Sample[4][];
+            currentSampsIndex = new int[4];
+            for(int i = 0; i < 4; i++) {
+                System.out.println(bestBranchSize[i]);
                 samps[i] = new Sample[bestBranchSize[i]];
             }
             for(int i = 0; i < samples.length; i++) {
-                if(samples[i].getAttValue(indexBestGain).getnValue() <= bestSplit) {
+                double mean = bestMeanStd[0];
+                double std = bestMeanStd[1];
+                /*if(bestBranchSize[3] == 12)
+                    System.out.println();*/
+                if(samples[i].getAttValue(indexBestGain).getnValue() < (mean-std)) {
+                    samps[0][currentSampsIndex[0]++] = samples[i];
+                } else if(/*samples[i].getAttValue(indexBestGain).getnValue() >= (mean-std) && */samples[i].getAttValue(indexBestGain).getnValue() < mean) {
+                    samps[1][currentSampsIndex[1]++] = samples[i];
+                } else if(/*samples[i].getAttValue(indexBestGain).getnValue() >= mean && */samples[i].getAttValue(indexBestGain).getnValue() < (mean+std)) {
+                    samps[2][currentSampsIndex[2]++] = samples[i];
+                } else { //if(samples[i].getAttValue(attr).getnValue() >= (mean+std))
+                    samps[3][currentSampsIndex[3]++] = samples[i];
+                }
+                /*if(samples[i].getAttValue(indexBestGain).getnValue() <= bestSplit) {
                     samps[0][currentSampsIndex[0]++] = samples[i];
                 } else {
                     samps[1][currentSampsIndex[1]++] = samples[i];
-                }
+                }*/
             }
         }
-        J48Node node = new J48Node(parent, numberOfAttrClassValues, samples, indexBestGain, bestSplit);
+        J48Node node = new J48Node(parent, numberOfAttrClassValues, samples, indexBestGain, bestMeanStd[0],bestMeanStd[1]);
         calcErrors(node);
         if(root == null) {
             root = node;
@@ -462,7 +455,7 @@ public class C45Tree {
         return attrValues;
     }
 
-    private double calcEntropy(Sample[] samples, int attr, double split, int branchSize[]) {
+    private double calcEntropy(Sample[] samples, int attr,int branchSize[], double meanStd[]) {
         double entropy = 0;
         int numOfSamp = samples.length;
         if(attr == -1) {
@@ -529,17 +522,33 @@ public class C45Tree {
                 }
             } else {
                 int numberOfClassValues = this.attrs[this.numberOfAttributes-1].getNumberOfValues();
-                int classValues[][] = new int[2][numberOfClassValues];
-                int classSize[] = new int[2];
+                int classValues[][] = new int[4][numberOfClassValues];
+                int classSize[] = new int[4];
+                double sumVal = 0;
+                for(int i = 0; i < samples.length; i++) {
+                    sumVal += samples[i].getAttValue(attr).getnValue();
+                }
+                double mean = sumVal/samples.length;
+                double sumStd = 0;
+                for(int i = 0; i < samples.length; i++) {
+                    sumStd += Math.pow((samples[i].getAttValue(attr).getnValue()-mean),2);
+                }
+                double std = Math.sqrt(sumStd/samples.length);
                 for(int i = 0; i < numOfSamp; i++) {
                     for(int j = 0; j < numberOfClassValues; j++) {
                         if(samples[i].getAttValue(this.numberOfAttributes-1).getsValue().equals(this.attrs[this.numberOfAttributes-1].getValue(j))) {
-                            if(samples[i].getAttValue(attr).getnValue() <= split) {
+                            if(samples[i].getAttValue(attr).getnValue() < (mean-std)) {
                                 classValues[0][j]++;
                                 classSize[0]++;
-                            } else {
+                            } else if(samples[i].getAttValue(attr).getnValue() >= (mean-std) && samples[i].getAttValue(attr).getnValue() < mean) {
                                 classValues[1][j]++;
                                 classSize[1]++;
+                            } else if(samples[i].getAttValue(attr).getnValue() >= mean && samples[i].getAttValue(attr).getnValue() < (mean+std)) {
+                                classValues[2][j]++;
+                                classSize[2]++;
+                            } else { //if(samples[i].getAttValue(attr).getnValue() >= (mean+std))
+                                classValues[3][j]++;
+                                classSize[3]++;
                             }
                             break;
                         }
@@ -547,7 +556,11 @@ public class C45Tree {
                 }
                 branchSize[0] = classSize[0];
                 branchSize[1] = classSize[1];
-                for(int j = 0; j < 2; j++) {
+                branchSize[2] = classSize[2];
+                branchSize[3] = classSize[3];
+                meanStd[0] = mean;
+                meanStd[1] = std;
+                for(int j = 0; j < 4; j++) {
                     for(int i = 0; i < numberOfClassValues; i++) {
                         double valueProb = (double) classValues[j][i] / classSize[j];
                         if(valueProb > 0) {
@@ -577,11 +590,26 @@ public class C45Tree {
                     draw(node.children[i], level + 1);
                 } else {
                     System.out.print(this.attrs[node.attr].getName());
-                    if (i == 0) {
-                        System.out.println(" <= " + node.getTreshold());
+                    double mean = node.getMean();
+                    double std = node.getStd();
+                    switch(i) {
+                        case 0:
+                            System.out.println(" < " + (mean-std));
+                            break;
+                        case 1:
+                            System.out.println(" <" + (mean-std) + ".." + (mean) + ")");
+                            break;
+                        case 2:
+                            System.out.println(" <" + (mean) + ".." + (mean+std) + ")");
+                            break;
+                        case 3:
+                            System.out.println(" >= " + (mean+std));
+                    }
+                    /*if (i == 0) {
+                        System.out.println(" < " + (mean-std));
                     } else {
                         System.out.println(" > " + node.getTreshold());
-                    }
+                    }*/
                     draw(node.children[i], level + 1);
                 }
             }
