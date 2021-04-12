@@ -10,6 +10,7 @@ public class C45Tree {
     int minimumInstancesOnLeave = 2;
     Sample samples[];
     Attribute[] attrs;
+
     private boolean validation;
     private int kFold;
     int numberOfSamples;
@@ -320,7 +321,7 @@ public class C45Tree {
                         double inf_gain = dataSetEntropy - splitEntropy;
                         double split_info = (-1)*(((double)(j+1)/samples.length) * (Math.log((double)(j+1)/samples.length)/Math.log(2))) + (-1)*(((double)(samples.length - j - 1)/samples.length) * (Math.log((double)(samples.length - j - 1)/samples.length)/Math.log(2)));
                         double gain_ratio = inf_gain/split_info;
-                        if ((gain_ratio >= bestGainRatio) && minimumInstances) {
+                        if ((splitEntropy <= bestEntropy) && minimumInstances) {
                             bestGainRatio = gain_ratio;
                             bestEntropy = splitEntropy;
                             indexBestEntropy = j;
@@ -389,7 +390,7 @@ public class C45Tree {
             }
         }
         J48Node node = new J48Node(parent, numberOfAttrClassValues, samples, indexBestGain, bestSplit);
-        //calcErrors(node);
+        calcErrors(node);
 
 
         int numOfClassVal = this.attrs[this.numberOfAttributes-1].getNumberOfValues();
@@ -406,7 +407,7 @@ public class C45Tree {
             }
         }
 
-        double xTreshold = 0;
+        /*double xTreshold = 0;
         for(int i = 0; i < numberOfAttrClassValues; i++) {
             deltas[i] = freqClassValuesInAttrBran[i][0];
             for(int j = 1; j < numOfClassVal; j++) {
@@ -415,7 +416,7 @@ public class C45Tree {
             deltas[i] = Math.abs(deltas[i]);
             xTreshold += deltas[i];
         }
-        xTreshold = xTreshold/numberOfAttrClassValues;
+        xTreshold = xTreshold/numberOfAttrClassValues;*/
 
         if(root == null) {
             root = node;
@@ -425,30 +426,34 @@ public class C45Tree {
         }
 
         for(int i = 0; i < numberOfAttrClassValues; i++) {
+            findBranches(node, i, samps[i]);
+        }
+
+        /*for(int i = 0; i < numberOfAttrClassValues; i++) {
             if(xTreshold == 63)
                 System.out.println("");
             if(deltas[i] >= xTreshold)
                 node.setChild(i, new J48Node(node, 0, samps[i], -1,0));
             else
                 findBranches(node, i, samps[i]);
-        }
+        }*/
 
 
 
 
         //prune child nodes
-        /*if(prune) {
-            double childSumErrors = 0;*/
+        if(prune) {
+            double childSumErrors = 0;
             /*if (node.sampleSize == 178) {
                 int h = 0;
             }*/
-            /*for (int i = 0; i < node.childrenSize; i++) {
+            for (int i = 0; i < node.childrenSize; i++) {
                 childSumErrors += node.getChild(i).getSubErrorRate();
             }
             if (childSumErrors > node.getErrorRate()) {
                 node.setChildrenSize(0);
             }
-        }*/
+        }
     }
 
     private void calcErrors(J48Node node) {
