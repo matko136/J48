@@ -273,6 +273,7 @@ public class C45Tree {
         double bestGain = 0;
         int indexBestGain = -1;
         double bestSplit = 0;
+        double bestGainRatioGlob = 0;
         int bestBranchSize[] = new int[1];
         double bestMeanStd[] = new double[2];
         double dataSetEntropy = calcEntropy(samples, -1, null,null);
@@ -287,15 +288,29 @@ public class C45Tree {
                 int d = 5;
             }*/
             double entropy = 0;
+            double gainRatio = 0;
             int branchSize[] = new int[1];
             double localBestSplit = 0;
             double meanStd[] = new double[2];
             if(!attrs[i].isNumeric()) {
                 branchSize = new int[this.attrs[i].getNumberOfValues()];
                 entropy = calcEntropy(samples, i, branchSize,null);
+                double split_info = 0;//((i+1) * (Math.log(i+1)/Math.log(2))) + ((samples.length - i - 1) * (Math.log(samples.length - i - 1)/Math.log(2)));
+                for(int k = 0; k < attrs[i].getNumberOfValues(); k++) {
+                    split_info += (-1)*(((double)branchSize[k]/samples.length) * (Math.log((double)branchSize[k]/samples.length)/Math.log(2)));
+                }
+                double infGain = dataSetEntropy - entropy;
+                gainRatio = infGain/split_info;
             } else {
                 branchSize = new int[4];
                 entropy = calcEntropy(samples, i,  branchSize, meanStd);
+                double inf_gain = dataSetEntropy - entropy;
+                double split_info = 0;
+                for(int k = 0; k < 4; k++) {
+                    split_info += (-1)*(((double)(branchSize[k])/samples.length) * (Math.log((double)(branchSize[k])/samples.length)/Math.log(2)));
+                }
+                //double split_info = (-1)*(((double)(branchSize[0])/samples.length) * (Math.log((double)(branchSize[0])/samples.length)/Math.log(2))) + (-1)*(((double)(samples.length - j - 1)/samples.length) * (Math.log((double)(samples.length - j - 1)/samples.length)/Math.log(2)));
+                gainRatio = inf_gain/split_info;
             }
 
             boolean minimumInstances = true;
@@ -306,7 +321,8 @@ public class C45Tree {
                 }
             }
 
-            if((dataSetEntropy - entropy >= bestGain) && minimumInstances) {
+            if((gainRatio >= bestGainRatioGlob) && minimumInstances) {
+                bestGainRatioGlob = gainRatio;
                 bestSplit = localBestSplit;
                 bestGain = dataSetEntropy - entropy;
                 indexBestGain = i;
