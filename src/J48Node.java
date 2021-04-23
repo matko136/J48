@@ -9,8 +9,10 @@ public class J48Node {
     int classIndex;
     int misClassifiedSamps;
     double errorRate;
+    double mean;
+    double std;
 
-    public J48Node(J48Node parent, int childrenSize, Sample samples[], int decisionAttr, double treshold) {
+    public J48Node(J48Node parent, int childrenSize, Sample samples[], int decisionAttr, double mean, double stdDev) {
         this.parent = parent;
         this.children = new J48Node[childrenSize];
         this.childrenSize = childrenSize;
@@ -18,6 +20,8 @@ public class J48Node {
         this.attr = decisionAttr;
         this.treshold = treshold;
         this.sampleSize = samples.length;
+        this.mean = mean;
+        this.std = stdDev;
     }
 
     public void setChildrenSize(int size) {
@@ -78,6 +82,14 @@ public class J48Node {
 
     public Sample getSample(int index) {
         return samples[index];
+    }
+
+    public double getMean() {
+        return this.mean;
+    }
+
+    public double getStd() {
+        return this.std;
     }
 
     public int getSampleSize() {
